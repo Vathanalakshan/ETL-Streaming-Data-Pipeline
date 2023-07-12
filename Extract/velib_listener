@@ -1,0 +1,16 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import explode
+from pyspark.sql.functions import split
+
+spark = SparkSession \
+    .builder \
+    .appName("StructuredNetworkWordCount") \
+    .getOrCreate()
+
+data = [('Tiny Rebel','Stay Puft'),('Crafty Devil','Mike Rayer')]
+columns = ["brewery","beer"]
+df = spark.createDataFrame(data=data, schema = columns)
+df.show()
+
+
+
