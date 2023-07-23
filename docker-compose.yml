@@ -28,7 +28,8 @@ services:
       # blocks until kafka is reachable
       kafka-topics --bootstrap-server kafka:29092 --list
       # create topics
-      /opt/bitnami/kafka/bin/kafka-topics.sh --create --partitions 3 --bootstrap-server kafka:9092 --topic myTopic
+      /opt/bitnami/kafka/bin/kafka-topics.sh --create --partitions 3 --bootstrap-server kafka:9092 --topic station_information
+      /opt/bitnami/kafka/bin/kafka-topics.sh --create --partitions 3 --bootstrap-server kafka:9092 --topic station_status
       # show topics
       /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
       "
@@ -48,6 +49,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     networks:
       - app-tier
+    
 
   redis:
     image: docker.io/bitnami/redis:7.0
@@ -69,10 +71,10 @@ services:
       - AIRFLOW_WEBSERVER_HOST=airflow
       - AIRFLOW_LOAD_EXAMPLES=false
     volumes:
-      - .\Extract\dags:/opt/bitnami/airflow/dags
-      - .\Extract\logs:/opt/bitnami/airflow/logs
-      - .\Extract\plugins:/opt/bitnami/airflow/plugins
-      - .\Extract\requirements.txt:/bitnami/python/requirements.txt
+      - .\Airflow\dags:/opt/bitnami/airflow/dags
+      - .\Airflow\logs:/opt/bitnami/airflow/logs
+      - .\Airflow\plugins:/opt/bitnami/airflow/plugins
+      - .\Airflow\requirements.txt:/bitnami/python/requirements.txt
     networks:
       - app-tier
     depends_on:
@@ -90,10 +92,10 @@ services:
       - AIRFLOW_WEBSERVER_HOST=airflow
       - AIRFLOW_LOAD_EXAMPLES=false
     volumes:
-      - .\Extract\dags:/opt/bitnami/airflow/dags
-      - .\Extract\logs:/opt/bitnami/airflow/logs
-      - .\Extract\plugins:/opt/bitnami/airflow/plugins
-      - .\Extract\requirements.txt:/bitnami/python/requirements.txt
+      - .\Airflow\dags:/opt/bitnami/airflow/dags
+      - .\Airflow\logs:/opt/bitnami/airflow/logs
+      - .\Airflow\plugins:/opt/bitnami/airflow/plugins
+      - .\Airflow\requirements.txt:/bitnami/python/requirements.txt
     networks:
       - app-tier
     depends_on:
@@ -116,7 +118,7 @@ services:
         condition: service_completed_successfully
 
   spark:
-    image: docker.io/bitnami/spark:3.4
+    image: docker.io/bitnami/spark:3.3
     container_name: spark-master
     environment:
       - SPARK_MODE=master
@@ -133,11 +135,14 @@ services:
       init-kafka-container:
         condition: service_completed_successfully
     volumes:
-      - .\Transform\conf\log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
-      - .\Transform\spark-apps:/opt/spark-apps
-      - .\Transform\requirements.txt:/bitnami/python/requirements.txt 
+      - .\Spark\conf\log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - .\Spark\spark-apps:/opt/spark-apps
+      - .\Spark\requirements.txt:/bitnami/python/requirements.txt 
+    dns:
+      - "8.8.8.8"
+
   spark-worker:
-    image: docker.io/bitnami/spark:3.4
+    image: docker.io/bitnami/spark:3.3
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark:7077
@@ -149,12 +154,15 @@ services:
       - SPARK_SSL_ENABLED=no
       - SPARK_USER=spark
     volumes:
-      - .\Transform\conf\log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - .\Spark\conf\log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
     depends_on:
       init-kafka-container:
         condition: service_completed_successfully
     networks:
       - app-tier
+    dns:
+      - "8.8.8.8"
+
 
 volumes:
   kafka_data:

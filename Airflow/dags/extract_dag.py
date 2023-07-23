@@ -28,10 +28,12 @@ def handle_response(response):
         print("error")
         return False
         
-def push_to_kafka(ti):
+def push_to_kafka(station_status,station_information):
     producer = KafkaProducer(bootstrap_servers='kafka:9092',key_serializer=lambda v: json.dumps(v).encode('utf-8'),value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-    data = json.loads(ti.xcom_pull(task_ids='velib_api'))
-    producer.send("myTopic",key=data['lastUpdatedOther'],value= data['data'])
+    data_station_status = json.loads(station_status)
+    data_station_information = json.loads(station_information)
+    producer.send("station_status",key=data_station_status['lastUpdatedOther'],value= data_station_status['data']['stations'])
+    producer.send("station_information",key=data_station_information['lastUpdatedOther'],value= data_station_information['data']['stations'])
 
 with DAG(
     dag_id='VelibServiceCall',
@@ -41,8 +43,8 @@ with DAG(
     schedule_interval= timedelta(minutes=5)
 )as dag:
     create_conn("velib_api","http","https://velib-metropole-opendata.smoove.pro")
-    task1 = SimpleHttpOperator(
-        task_id='velib_api',
+    task_station_status = SimpleHttpOperator(
+        task_id='velib_station_status',
         method='GET',
         http_conn_id='velib_api',
         endpoint='/opendata/Velib_Metropole/station_status.json',
@@ -51,11 +53,22 @@ with DAG(
         do_xcom_push=True,
         dag=dag
     )
-    task2 = PythonOperator(
+    task_station_information = SimpleHttpOperator(
+        task_id='velib_station_information',
+        method='GET',
+        http_conn_id='velib_api',
+        endpoint='/opendata/Velib_Metropole/station_information.json',
+        headers={"Content-type":"application/json"},
+        response_check=lambda response:handle_response(response),
+        do_xcom_push=True,
+        dag=dag
+    )
+    task_kafka_producer = PythonOperator(
         task_id='push_to_kafka',
         python_callable=push_to_kafka,
+         op_args=["{{ ti.xcom_pull(task_ids='velib_station_status') }}","{{ ti.xcom_pull(task_ids='velib_station_information') }}"],
         dag=dag
     )
 
-    task1 >> [task2]
+    [task_station_status,task_station_information] >> task_kafka_producer
 

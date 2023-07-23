@@ -1,0 +1,4 @@
+py4j==0.10.9.5
+kafka-python
+PyYAML
+snowflake-connector-python
